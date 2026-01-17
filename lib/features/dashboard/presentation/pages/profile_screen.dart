@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lost_n_found/core/utils/snackbar_utils.dart';
+import 'package:lost_n_found/features/auth/presentation/view_model/auth_view_model.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/theme_extensions.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  Future<void> _logout() async {
+    ref.read(authViewModelProvider.notifier).logout();
+    Navigator.pop(context);
+    AppRoutes.pushAndRemoveUntil(context, const LoginPage());
+    SnackbarUtils.showSuccess(context, "Logged out successfully.");
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,10 +57,7 @@ class ProfileScreen extends StatelessWidget {
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 4,
-                        ),
+                        border: Border.all(color: Colors.white, width: 4),
                         boxShadow: const [
                           BoxShadow(
                             color: AppColors.black20,
@@ -77,10 +89,7 @@ class ProfileScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'john.doe@softwarica.edu.np',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                     const SizedBox(height: 24),
 
@@ -190,10 +199,7 @@ class ProfileScreen extends StatelessWidget {
               // Version Info
               Text(
                 'Version 1.0.0',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: context.textSecondary60,
-                ),
+                style: TextStyle(fontSize: 12, color: context.textSecondary60),
               ),
               const SizedBox(height: 32),
             ],
@@ -207,15 +213,8 @@ class ProfileScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          'Logout',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
@@ -226,10 +225,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              AppRoutes.pushAndRemoveUntil(context, const LoginPage());
-            },
+            onPressed: _logout,
             child: Text(
               'Logout',
               style: TextStyle(
@@ -248,10 +244,7 @@ class _StatItem extends StatelessWidget {
   final String title;
   final String value;
 
-  const _StatItem({
-    required this.title,
-    required this.value,
-  });
+  const _StatItem({required this.title, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -266,13 +259,7 @@ class _StatItem extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.white80,
-          ),
-        ),
+        Text(title, style: TextStyle(fontSize: 12, color: AppColors.white80)),
       ],
     );
   }
@@ -316,7 +303,9 @@ class _MenuItem extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: (iconColor ?? AppColors.primary).withAlpha(26), // 10% opacity
+                    color: (iconColor ?? AppColors.primary).withAlpha(
+                      26,
+                    ), // 10% opacity
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
