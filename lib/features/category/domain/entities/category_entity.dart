@@ -14,10 +14,5 @@ class CategoryEntity extends Equatable {
   });
 
   @override
-  List<Object?> get props => [
-        categoryId,
-        name,
-        description,
-        status,
-      ];
+  List<Object?> get props => [categoryId, name, description, status];
 }

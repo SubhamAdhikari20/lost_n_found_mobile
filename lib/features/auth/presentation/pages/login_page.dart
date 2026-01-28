@@ -22,19 +22,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       await ref
           .read(authViewModelProvider.notifier)
           .login(
-            identifier: _emailController.text,
+            email: _emailController.text,
             password: _passwordController.text,
           );
     }
@@ -57,6 +50,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   void _handleAppleSignIn() {
     // TODO: Implement Apple Sign In
     SnackbarUtils.showInfo(context, 'Apple Sign In coming soon');
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override

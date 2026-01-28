@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lost_n_found/core/services/storage/user_session_service.dart';
 import 'package:lost_n_found/core/utils/snackbar_utils.dart';
 import 'package:lost_n_found/features/auth/presentation/view_model/auth_view_model.dart';
+import 'package:lost_n_found/features/item/presentation/view_model/item_view_model.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/theme_extensions.dart';
 import '../../../../app/routes/app_routes.dart';
@@ -15,6 +17,20 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => _loadMyItems());
+  }
+
+  void _loadMyItems() {
+    final userSessionService = ref.read(userSessionServiceProvider);
+    final userId = userSessionService.getUserId();
+    if (userId != null) {
+      ref.read(itemViewModelProvider.notifier).getMyItems(userId);
+    }
+  }
+
   Future<void> _logout() async {
     ref.read(authViewModelProvider.notifier).logout();
     Navigator.pop(context);
@@ -24,6 +40,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userSessionService = ref.watch(userSessionServiceProvider);
+    final userName = userSessionService.getUserFullName() ?? 'User';
+    final userEmail = userSessionService.getUserEmail() ?? '';
+    final itemState = ref.watch(itemViewModelProvider);
+
     return Scaffold(
       // backgroundColor: context.backgroundColor // Using theme default,
       body: SafeArea(
@@ -66,20 +87,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ],
                       ),
-                      child: const CircleAvatar(
+                      child: CircleAvatar(
                         radius: 60,
                         backgroundColor: Colors.white,
-                        child: Icon(
-                          Icons.person_rounded,
-                          size: 60,
-                          color: AppColors.primary,
+                        child: Text(
+                          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     Text(
-                      'John Doe',
+                      userName,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -88,7 +112,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'john.doe@softwarica.edu.np',
+                      userEmail,
                       style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                     const SizedBox(height: 24),
@@ -99,19 +123,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _StatItem(title: 'Lost', value: '12'),
+                          _StatItem(
+                            title: 'Lost',
+                            value: "${itemState.myLostItems.length}",
+                          ),
                           Container(
                             width: 1,
                             height: 40,
                             color: AppColors.white30,
                           ),
-                          _StatItem(title: 'Found', value: '8'),
+                          _StatItem(
+                            title: 'Found',
+                            value: "${itemState.myFoundItems.length}",
+                          ),
                           Container(
                             width: 1,
                             height: 40,
                             color: AppColors.white30,
                           ),
-                          _StatItem(title: 'Returned', value: '5'),
+                          _StatItem(title: 'Returned', value: '0'),
                         ],
                       ),
                     ),

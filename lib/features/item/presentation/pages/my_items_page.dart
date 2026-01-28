@@ -1,71 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lost_n_found/app/routes/app_routes.dart';
+import 'package:lost_n_found/core/services/storage/user_session_service.dart';
+import 'package:lost_n_found/features/category/presentation/view_model/category_view_model.dart';
+import 'package:lost_n_found/features/dashboard/presentation/widgets/time_ago_text.dart';
+import 'package:lost_n_found/features/item/domain/entities/item_entity.dart';
+import 'package:lost_n_found/features/item/presentation/view_model/item_view_model.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/theme_extensions.dart';
 
-class MyItemsPage extends StatefulWidget {
+class MyItemsPage extends ConsumerStatefulWidget {
   const MyItemsPage({super.key});
 
   @override
-  State<MyItemsPage> createState() => _MyItemsPageState();
+  ConsumerState<MyItemsPage> createState() => _MyItemsPageState();
 }
 
-class _MyItemsPageState extends State<MyItemsPage>
+class _MyItemsPageState extends ConsumerState<MyItemsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  // Mock data for user's items
-  final List<Map<String, dynamic>> _myLostItems = [
-    {
-      'title': 'iPhone 14 Pro',
-      'location': 'Library, Block A',
-      'time': '2h ago',
-      'category': 'Electronics',
-      'status': 'active', // active, claimed, resolved
-    },
-    {
-      'title': 'Car Keys',
-      'location': 'Parking Lot',
-      'time': '5h ago',
-      'category': 'Keys',
-      'status': 'active',
-    },
-    {
-      'title': 'Apple Watch',
-      'location': 'Gym',
-      'time': '1d ago',
-      'category': 'Accessories',
-      'status': 'resolved',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _myFoundItems = [
-    {
-      'title': 'Blue Backpack',
-      'location': 'Cafeteria',
-      'time': '3h ago',
-      'category': 'Bags',
-      'status': 'active',
-    },
-    {
-      'title': 'Student ID Card',
-      'location': 'Block C, Room 201',
-      'time': '1d ago',
-      'category': 'Documents',
-      'status': 'claimed',
-    },
-    {
-      'title': 'Wallet',
-      'location': 'Block B, Ground Floor',
-      'time': '2d ago',
-      'category': 'Personal',
-      'status': 'resolved',
-    },
-  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    Future.microtask(() => _loadData());
+  }
+
+  void _loadData() {
+    final userSessionService = ref.read(userSessionServiceProvider);
+    final userId = userSessionService.getUserId();
+    if (userId != null) {
+      ref.read(itemViewModelProvider.notifier).getMyItems(userId);
+    }
+    ref.read(categoryViewModelProvider.notifier).getAllCategories();
   }
 
   @override
@@ -74,8 +42,21 @@ class _MyItemsPageState extends State<MyItemsPage>
     super.dispose();
   }
 
+  String _getCategoryName(String? categoryId) {
+    if (categoryId == null) return 'Other';
+    final categoryState = ref.read(categoryViewModelProvider);
+    final category = categoryState.categories.where(
+      (category) => category.categoryId == categoryId,
+    );
+    return category.isNotEmpty ? category.first.name : 'Other';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final itemState = ref.watch(itemViewModelProvider);
+    final myLostItems = itemState.myLostItems;
+    final myFoundItems = itemState.myFoundItems;
+
     return Scaffold(
       // backgroundColor: context.backgroundColor // Using theme default,
       body: SafeArea(
@@ -117,10 +98,7 @@ class _MyItemsPageState extends State<MyItemsPage>
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: AppColors.softShadow,
                     ),
-                    child: Icon(
-                      Icons.sort_rounded,
-                      color: context.textPrimary,
-                    ),
+                    child: Icon(Icons.sort_rounded, color: context.textPrimary),
                   ),
                 ],
               ),
@@ -168,7 +146,7 @@ class _MyItemsPageState extends State<MyItemsPage>
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '${_myLostItems.length}',
+                            '${myLostItems.length}',
                             style: TextStyle(fontSize: 12),
                           ),
                         ),
@@ -193,7 +171,7 @@ class _MyItemsPageState extends State<MyItemsPage>
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '${_myFoundItems.length}',
+                            '${myFoundItems.length}',
                             style: TextStyle(fontSize: 12),
                           ),
                         ),
@@ -212,9 +190,9 @@ class _MyItemsPageState extends State<MyItemsPage>
                 controller: _tabController,
                 children: [
                   // My Lost Items
-                  _buildItemsList(_myLostItems, true),
+                  _buildItemsList(myLostItems, true),
                   // My Found Items
-                  _buildItemsList(_myFoundItems, false),
+                  _buildItemsList(myFoundItems, false),
                 ],
               ),
             ),
@@ -224,7 +202,7 @@ class _MyItemsPageState extends State<MyItemsPage>
     );
   }
 
-  Widget _buildItemsList(List<Map<String, dynamic>> items, bool isLost) {
+  Widget _buildItemsList(List<ItemEntity> items, bool isLost) {
     if (items.isEmpty) {
       return Center(
         child: Column(
@@ -257,12 +235,12 @@ class _MyItemsPageState extends State<MyItemsPage>
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: _MyItemCard(
-            title: item['title'],
-            location: item['location'],
-            time: item['time'],
-            category: item['category'],
-            status: item['status'],
-            isLost: isLost,
+            title: item.itemName,
+            location: item.location,
+            time: item.createdAt!,
+            category: _getCategoryName(item.category),
+            status: item.status ?? (item.isClaimed ? 'claimed' : 'active'),
+            isLost: item.type == ItemType.lost,
             onTap: () {
               // Navigate to item detail
             },
@@ -271,7 +249,7 @@ class _MyItemsPageState extends State<MyItemsPage>
             },
             onDelete: () {
               // Delete item
-              _showDeleteDialog(context, item['title']);
+              _showDeleteDialog(context, item.itemName);
             },
           ),
         );
@@ -283,9 +261,7 @@ class _MyItemsPageState extends State<MyItemsPage>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Delete Item',
           style: TextStyle(fontWeight: FontWeight.bold),
@@ -301,8 +277,7 @@ class _MyItemsPageState extends State<MyItemsPage>
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              // TODO: Delete item
+              AppRoutes.pop(context);
             },
             child: Text(
               'Delete',
@@ -321,7 +296,7 @@ class _MyItemsPageState extends State<MyItemsPage>
 class _MyItemCard extends StatelessWidget {
   final String title;
   final String location;
-  final String time;
+  final DateTime time;
   final String category;
   final String status;
   final bool isLost;
@@ -417,8 +392,8 @@ class _MyItemCard extends StatelessWidget {
                           gradient: isResolved
                               ? null
                               : (isLost
-                                  ? AppColors.lostGradient
-                                  : AppColors.foundGradient),
+                                    ? AppColors.lostGradient
+                                    : AppColors.foundGradient),
                           color: isResolved ? AppColors.claimedColor : null,
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -451,7 +426,9 @@ class _MyItemCard extends StatelessWidget {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: _getStatusColor(status).withAlpha(26),
+                                    color: _getStatusColor(
+                                      status,
+                                    ).withAlpha(26),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -492,8 +469,8 @@ class _MyItemCard extends StatelessWidget {
                                   color: AppColors.textTertiary,
                                 ),
                                 const SizedBox(width: 4),
-                                Text(
-                                  time,
+                                TimeAgoText(
+                                  dateTime: time,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: AppColors.textTertiary,

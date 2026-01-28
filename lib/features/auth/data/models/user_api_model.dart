@@ -87,6 +87,7 @@ class UserApiModel {
       username: userEntity.username,
       fullName: userEntity.fullName,
       phoneNumber: userEntity.phoneNumber,
+      password: userEntity.password,
       batchId: userEntity.batchId,
       profilePictureUrl: userEntity.profilePictureUrl,
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lost_n_found/features/dashboard/presentation/widgets/time_ago_text.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/theme_extensions.dart';
 import '../../../../core/utils/snackbar_utils.dart';
@@ -6,7 +7,7 @@ import '../../../../core/utils/snackbar_utils.dart';
 class ItemDetailPage extends StatelessWidget {
   final String title;
   final String location;
-  final String time;
+  final DateTime time;
   final String category;
   final bool isLost;
   final String? description;
@@ -110,7 +111,9 @@ class ItemDetailPage extends StatelessWidget {
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: BoxDecoration(
-                  gradient: isLost ? AppColors.lostGradient : AppColors.foundGradient,
+                  gradient: isLost
+                      ? AppColors.lostGradient
+                      : AppColors.foundGradient,
                 ),
                 child: SafeArea(
                   child: Column(
@@ -144,7 +147,9 @@ class ItemDetailPage extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              isLost ? Icons.search_off_rounded : Icons.check_circle_rounded,
+                              isLost
+                                  ? Icons.search_off_rounded
+                                  : Icons.check_circle_rounded,
                               size: 18,
                               color: Colors.white,
                             ),
@@ -234,7 +239,7 @@ class ItemDetailPage extends StatelessWidget {
                                 const SizedBox(width: 16),
                                 _InfoChip(
                                   icon: Icons.access_time_rounded,
-                                  text: time,
+                                  time: time,
                                 ),
                               ],
                             ),
@@ -400,7 +405,9 @@ class ItemDetailPage extends StatelessWidget {
                   child: Container(
                     height: 56,
                     decoration: BoxDecoration(
-                      gradient: isLost ? AppColors.foundGradient : AppColors.primaryGradient,
+                      gradient: isLost
+                          ? AppColors.foundGradient
+                          : AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: AppColors.buttonShadow,
                     ),
@@ -408,7 +415,9 @@ class ItemDetailPage extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          isLost ? Icons.check_circle_rounded : Icons.pan_tool_rounded,
+                          isLost
+                              ? Icons.check_circle_rounded
+                              : Icons.pan_tool_rounded,
                           color: Colors.white,
                         ),
                         const SizedBox(width: 10),
@@ -436,16 +445,16 @@ class ItemDetailPage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                gradient: isLost ? AppColors.foundGradient : AppColors.primaryGradient,
+                gradient: isLost
+                    ? AppColors.foundGradient
+                    : AppColors.primaryGradient,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -498,31 +507,29 @@ class ItemDetailPage extends StatelessWidget {
 
 class _InfoChip extends StatelessWidget {
   final IconData icon;
-  final String text;
+  final String? _text;
+  final DateTime? _time;
 
-  const _InfoChip({
-    required this.icon,
-    required this.text,
-  });
+  const _InfoChip({required this.icon, String? text, DateTime? time})
+    : _text = text,
+      _time = time;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 16,
-          color: context.textSecondary,
-        ),
+        Icon(icon, size: 16, color: context.textSecondary),
         const SizedBox(width: 6),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            color: context.textSecondary,
-          ),
-        ),
+        (_time != null) && (_text == null)
+            ? TimeAgoText(
+                dateTime: _time,
+                style: TextStyle(fontSize: 13, color: context.textSecondary),
+              )
+            : Text(
+                _text ?? "",
+                style: TextStyle(fontSize: 13, color: context.textSecondary),
+              ),
       ],
     );
   }

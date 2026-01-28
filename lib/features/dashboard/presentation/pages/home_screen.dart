@@ -1,101 +1,131 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lost_n_found/core/services/storage/user_session_service.dart';
+import 'package:lost_n_found/features/category/domain/entities/category_entity.dart';
+import 'package:lost_n_found/features/category/presentation/state/category_state.dart';
+import 'package:lost_n_found/features/category/presentation/view_model/category_view_model.dart';
+import 'package:lost_n_found/features/dashboard/presentation/widgets/time_ago_text.dart';
+import 'package:lost_n_found/features/item/domain/entities/item_entity.dart';
+import 'package:lost_n_found/features/item/presentation/state/item_state.dart';
+import 'package:lost_n_found/features/item/presentation/view_model/item_view_model.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/theme_extensions.dart';
 import '../../../../app/routes/app_routes.dart';
 import '../../../item/presentation/pages/item_detail_page.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _selectedFilter = 0; // 0: All, 1: Lost, 2: Found
-  String _selectedCategory = 'All';
+  String? _selectedCategoryId;
+  String _searchQuery = '';
+
+  IconData _getIconForCategoryName(String categoryName) {
+    switch (categoryName.toLowerCase()) {
+      case 'electronics':
+        return Icons.devices_rounded;
+      case 'personal':
+        return Icons.person_rounded;
+      case 'accessories':
+        return Icons.watch_rounded;
+      case 'documents':
+        return Icons.description_rounded;
+      case 'keys':
+        return Icons.key_rounded;
+      case 'bags':
+        return Icons.shopping_bag_rounded;
+      case 'clothing':
+        return Icons.checkroom_rounded;
+      case 'sports':
+        return Icons.sports_basketball_rounded;
+      case 'books':
+        return Icons.menu_book_rounded;
+      case 'wallet':
+        return Icons.account_balance_wallet_rounded;
+      case 'phone':
+        return Icons.phone_android_rounded;
+      case 'laptop':
+        return Icons.laptop_rounded;
+      case 'jewelry':
+        return Icons.diamond_rounded;
+      case 'eyewear':
+        return Icons.visibility_rounded;
+      case 'other':
+        return Icons.more_horiz_rounded;
+      default:
+        return Icons.category_rounded;
+    }
+  }
 
   final List<String> _filters = ['All', 'Lost', 'Found'];
-  // Later this data will come from backend/API
-  final List<Map<String, dynamic>> _categories = [
-    {'name': 'All', 'icon': Icons.apps_rounded},
-    {'name': 'Electronics', 'icon': Icons.devices_rounded},
-    {'name': 'Personal', 'icon': Icons.person_rounded},
-    {'name': 'Accessories', 'icon': Icons.watch_rounded},
-    {'name': 'Documents', 'icon': Icons.description_rounded},
-    {'name': 'Keys', 'icon': Icons.key_rounded},
-    {'name': 'Bags', 'icon': Icons.backpack_rounded},
-  ];
 
-  // Mock data for items
-  final List<Map<String, dynamic>> _items = [
-    {
-      'title': 'iPhone 14 Pro',
-      'location': 'Library, Block A',
-      'time': '2h ago',
-      'category': 'Electronics',
-      'isLost': true,
-      'image': null,
-    },
-    {
-      'title': 'Blue Backpack',
-      'location': 'Cafeteria',
-      'time': '3h ago',
-      'category': 'Bags',
-      'isLost': false,
-      'image': null,
-    },
-    {
-      'title': 'Car Keys',
-      'location': 'Parking Lot',
-      'time': '5h ago',
-      'category': 'Keys',
-      'isLost': true,
-      'image': null,
-    },
-    {
-      'title': 'Student ID Card',
-      'location': 'Block C, Room 201',
-      'time': '1d ago',
-      'category': 'Documents',
-      'isLost': false,
-      'image': null,
-    },
-    {
-      'title': 'Apple Watch',
-      'location': 'Gym',
-      'time': '1d ago',
-      'category': 'Accessories',
-      'isLost': true,
-      'image': null,
-    },
-    {
-      'title': 'Wallet',
-      'location': 'Block B, Ground Floor',
-      'time': '2d ago',
-      'category': 'Personal',
-      'isLost': false,
-      'image': null,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(itemViewModelProvider.notifier).getAllItems();
+      ref.read(categoryViewModelProvider.notifier).getAllCategories();
+    });
+  }
 
-  List<Map<String, dynamic>> get _filteredItems {
-    return _items.where((item) {
-      // Filter by Lost/Found
-      if (_selectedFilter == 1 && !item['isLost']) return false;
-      if (_selectedFilter == 2 && item['isLost']) return false;
+  List<ItemEntity> _getFilteredItems(ItemState itemState) {
+    List<ItemEntity> items = itemState.items;
 
-      // Filter by category
-      if (_selectedCategory != 'All' && item['category'] != _selectedCategory) {
-        return false;
-      }
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      items = items.where((item) {
+        final nameMatch = item.itemName.toLowerCase().contains(query);
+        final descriptionMatch =
+            item.description?.toLowerCase().contains(query) ?? false;
+        final locationMatch = item.location.toLowerCase().contains(query);
+        return nameMatch || descriptionMatch || locationMatch;
+      }).toList();
+    }
 
-      return true;
-    }).toList();
+    // Filter by type (lost/found)
+    if (_selectedFilter == 1) {
+      items = items.where((item) => item.type == ItemType.lost).toList();
+    } else if (_selectedFilter == 2) {
+      items = items.where((item) => item.type == ItemType.found).toList();
+    }
+
+    // Filter by category
+    if (_selectedCategoryId != null) {
+      items = items
+          .where((item) => item.category == _selectedCategoryId)
+          .toList();
+    }
+
+    return items;
+  }
+
+  String _getCategoryNameById(
+    String? categoryId,
+    List<CategoryEntity> categories,
+  ) {
+    if (categoryId == null) return 'Other';
+    try {
+      return categories.firstWhere((c) => c.categoryId == categoryId).name;
+    } catch (e) {
+      return 'Other';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final itemState = ref.watch(itemViewModelProvider);
+    final categoryState = ref.watch(categoryViewModelProvider);
+    final filteredItems = _getFilteredItems(itemState);
+    final userSessionService = ref.watch(userSessionServiceProvider);
+    final userName = userSessionService.getUserFullName() ?? 'User';
+
     return Scaffold(
       // backgroundColor: context.backgroundColor // Using theme default,
       body: SafeArea(
@@ -121,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'John Doe',
+                          userName,
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
@@ -182,6 +212,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     boxShadow: AppColors.softShadow,
                   ),
                   child: TextField(
+                    onChanged: (query) {
+                      setState(() => _searchQuery = query);
+                    },
                     decoration: InputDecoration(
                       hintText: 'Search items...',
                       hintStyle: TextStyle(color: AppColors.textTertiary),
@@ -211,7 +244,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
             // Filter Tabs (All, Lost, Found)
@@ -276,70 +308,73 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
             // Category Chips
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 46,
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _categories.length,
-                  itemBuilder: (context, index) {
-                    final category = _categories[index];
-                    final isSelected = _selectedCategory == category['name'];
+                child: categoryState.categoryStatus == CategoryStatus.loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: categoryState.categories.length,
+                        itemBuilder: (context, index) {
+                          final category = categoryState.categories[index];
+                          final isSelected =
+                              _selectedCategoryId == category.categoryId;
 
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = category['name'];
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: BoxDecoration(
-                            gradient: isSelected
-                                ? AppColors.primaryGradient
-                                : null,
-                            color: isSelected ? null : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: AppColors.softShadow,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                category['icon'],
-                                size: 18,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                category['name'],
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : AppColors.textSecondary,
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedCategoryId == category.categoryId;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: isSelected
+                                      ? AppColors.primaryGradient
+                                      : null,
+                                  color: isSelected ? null : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: AppColors.softShadow,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _getIconForCategoryName(category.name),
+                                      size: 18,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      category.name,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
             // Quick Stats
@@ -352,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _StatCard(
                         icon: Icons.search_off_rounded,
                         title: 'Lost Items',
-                        value: '12',
+                        value: '${itemState.lostItems.length}',
                         gradient: AppColors.lostGradient,
                       ),
                     ),
@@ -361,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _StatCard(
                         icon: Icons.check_circle_rounded,
                         title: 'Found Items',
-                        value: '8',
+                        value: '${itemState.foundItems.length}',
                         gradient: AppColors.foundGradient,
                       ),
                     ),
@@ -369,13 +404,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
             // Recent Items Section Header
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -401,11 +435,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
             // Items List
-            _filteredItems.isEmpty
+            filteredItems.isEmpty
                 ? SliverToBoxAdapter(
                     child: Center(
                       child: Padding(
@@ -435,33 +468,39 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20.0),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
-                        final item = _filteredItems[index];
+                        final item = filteredItems[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: _ItemCard(
-                            title: item['title'],
-                            location: item['location'],
-                            time: item['time'],
-                            category: item['category'],
-                            isLost: item['isLost'],
+                            title: item.itemName,
+                            location: item.location,
+                            time: item.createdAt!,
+                            category: _getCategoryNameById(
+                              item.category,
+                              categoryState.categories,
+                            ),
+                            isLost: item.type == ItemType.lost,
                             onTap: () {
                               AppRoutes.push(
                                 context,
                                 ItemDetailPage(
-                                  title: item['title'],
-                                  location: item['location'],
-                                  time: item['time'],
-                                  category: item['category'],
-                                  isLost: item['isLost'],
+                                  title: item.itemName,
+                                  location: item.location,
+                                  time: item.createdAt!,
+                                  category: _getCategoryNameById(
+                                    item.category,
+                                    categoryState.categories,
+                                  ),
+                                  isLost: item.type == ItemType.lost,
                                   description:
-                                      'This item was ${item['isLost'] ? 'lost' : 'found'} at ${item['location']}. Please contact if you have any information.',
+                                      'This item was ${item.type == ItemType.lost ? 'lost' : 'found'} at ${item.location}. Please contact if you have any information.',
                                   reportedBy: 'John Doe',
                                 ),
                               );
                             },
                           ),
                         );
-                      }, childCount: _filteredItems.length),
+                      }, childCount: filteredItems.length),
                     ),
                   ),
 
@@ -537,7 +576,7 @@ class _StatCard extends StatelessWidget {
 class _ItemCard extends StatelessWidget {
   final String title;
   final String location;
-  final String time;
+  final DateTime time;
   final String category;
   final bool isLost;
   final VoidCallback? onTap;
@@ -694,8 +733,8 @@ class _ItemCard extends StatelessWidget {
                             color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            time,
+                          TimeAgoText(
+                            dateTime: time,
                             style: TextStyle(
                               fontSize: 12,
                               color: AppColors.textTertiary,

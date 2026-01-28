@@ -78,7 +78,7 @@ class _SignupPageState extends ConsumerState<SignupPage> {
             fullName: _nameController.text.trim(),
             username: _emailController.text.trim().split("@").first,
             email: _emailController.text.trim(),
-            phoneNumber: _phoneController.text.trim(),
+            phoneNumber: '$_selectedCountryCode${_phoneController.text.trim()}',
             password: _passwordController.text.trim(),
             batchId: _selectedBatch,
           );

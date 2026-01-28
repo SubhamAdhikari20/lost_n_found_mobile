@@ -67,6 +67,7 @@ class SignUpUsecase
       fullName: params.fullName,
       phoneNumber: params.phoneNumber,
       password: params.password,
+      batchId: params.batchId,
     );
 
     return await _authRepository.signUp(userEntity);

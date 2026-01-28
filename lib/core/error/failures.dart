@@ -21,7 +21,7 @@ class ValidationFailure extends Failure {
     : super(message);
 }
 
-//API Failure with status code
+// API Failure with status code
 class ApiFailure extends Failure {
   final int? statusCode;
 
@@ -29,4 +29,10 @@ class ApiFailure extends Failure {
 
   @override
   List<Object?> get props => [message, statusCode];
+}
+
+// Network Failure
+class NetworkFailure extends Failure {
+  const NetworkFailure({String message = "No internet connection"})
+    : super(message);
 }
